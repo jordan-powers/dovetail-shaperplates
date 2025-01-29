@@ -2,6 +2,10 @@
 width = 260;
 height = 210;
 thickness = (1/16) * 25.4;
+fid = 0;
+selector = 1;
+
+echo("Generating file ", fid);
 
 dovetail_depth = 15;
 dovetail_radius = 1;
@@ -73,11 +77,13 @@ module dominos(fid) {
     linear_extrude(domino_thickness)
     scale(25.4/96)
     difference() {
-        import(str(fid, "_outline.svg"));
-        import(str(fid, "_dots.svg"));
+        import(str("svgs/", fid, "_outline.svg"));
+        import(str("svgs/", fid, "_dots.svg"));
     }
 }
 
+if(selector) 
+color("white") 
 difference() {
     union() {
         cube([width - dovetail_depth, height - dovetail_depth, thickness], false);
@@ -94,6 +100,8 @@ difference() {
     
     for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
         translate([dovetail_width * (i+1) + dovetail_depth, 0, 0]) rotate([0, 0, 90]) dovetail();
-    #dominos(1);
+    dominos(fid);
 }
-     
+else
+color("black")
+dominos(fid);
