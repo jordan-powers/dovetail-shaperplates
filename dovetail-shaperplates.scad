@@ -1,5 +1,5 @@
 // ALL MEASUREMENTS IN mm
-width = 260;
+width = 250;
 height = 210;
 thickness = (1/16) * 25.4;
 fid = 0;
@@ -7,7 +7,7 @@ selector = 1;
 
 echo("Generating file ", fid);
 
-dovetail_depth = 15;
+dovetail_depth = 10;
 dovetail_radius = 1;
 domino_thickness = 0.4;
 
@@ -73,7 +73,7 @@ module dovetail(tolerance=0) {
 }
 
 module dominos(fid) {
-    translate([0, height - dovetail_depth, thickness-domino_thickness])
+    translate([0, height - dovetail_depth])
     linear_extrude(domino_thickness)
     scale(25.4/96)
     difference() {
