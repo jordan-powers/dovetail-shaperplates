@@ -2,30 +2,36 @@ import argparse
 from random import randint
 from svgwrite import Drawing
 from pathlib import Path
+import subprocess
+
+OPENSCAD_EXE = Path(r"C:\Users\jordan\Downloads\OpenSCAD-2021.01-x86-64\openscad-2021.01\openscad.exe")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("width", type=int, help="width of 3d printer build plate, in mm")
 parser.add_argument("height", type=int, help="height of 3d printer build plate, in mm")
 parser.add_argument("dovetail_depth", type=int, help="depth of dovetail, in mm")
+parser.add_argument("thickness", type=float, help="thickness of generated plate, in mm")
 parser.add_argument("num_plates", type=int, help="how many unique plate patterns to generate")
+parser.add_argument("--svg-only", action="store_true", help="skip running openscad")
 
 args = parser.parse_args()
 
-domino_spacing = 5
+domino_vert_spacing = 5
+domino_horiz_spacing = 2.25
 domino_width = 43
 domino_height = 12.7
 # dovetail_angle = max(math.radians(60), math.atan(args.dovetail_depth / domino_spacing))
 
-num_rows = int((args.height - (args.dovetail_depth*2) + domino_spacing) // (domino_height + domino_spacing))
+num_rows = int((args.height - (args.dovetail_depth*2) + domino_vert_spacing) // (domino_height + domino_vert_spacing))
 print(f"num_rows={num_rows}")
 
-padding_height = (args.height - (args.dovetail_depth*2) - ((num_rows * (domino_height + domino_spacing)) - domino_spacing)) / 2
+padding_height = (args.height - (args.dovetail_depth*2) - ((num_rows * (domino_height + domino_vert_spacing)) - domino_vert_spacing)) / 2
 print(f"padding_height={padding_height}")
 
-num_cols = int((args.width - args.dovetail_depth - domino_spacing) // (domino_width + domino_spacing))
+num_cols = int((args.width - args.dovetail_depth - domino_horiz_spacing) // (domino_width + domino_horiz_spacing))
 print(f"num_cols={num_cols}")
 
-padding_width = (args.width - args.dovetail_depth - (num_cols * (domino_width + domino_spacing))) / 2
+padding_width = (args.width - args.dovetail_depth - (num_cols * (domino_width + domino_horiz_spacing))) / 2
 print(f"padding_width={padding_width}")
 
 # Adapted from https://github.com/augiev/Shaper-Dominos
@@ -37,7 +43,8 @@ circle_grid = 5.08*scale
 rect_w = domino_width*scale
 rect_h = domino_height*scale
 
-border = 5*scale
+border_w = domino_horiz_spacing*scale
+border_h = domino_vert_spacing*scale
 xoff = rect_w/2 + padding_width*scale
 yoff = rect_h/2 + padding_height*scale
 
@@ -69,11 +76,11 @@ def generate(d_outline, d_dots, rows, cols, previous=[]):
     gen = zip(row_col, vals)
 
     for (r, c), spots in gen:
-        xoff2 = xoff + c*(rect_w + border)
-        yoff2 = yoff + r*(rect_h + border)
+        xoff2 = xoff + c*(rect_w + border_w)
+        yoff2 = yoff + r*(rect_h + border_h)
 
-        geo_r = r
-        if geo_r > 0 and geo_r % 2 == 0:
+        geo_r = rows - r - 2
+        if geo_r >= 0 and geo_r % 2 == 0:
             xoff2 += args.dovetail_depth*scale
 
 
@@ -109,11 +116,39 @@ if requested_count > max_count:
     print(f'error, only {max_count} fiducials exist; requested {requested_count}')
     exit(1)
 
+svg_dir = Path.cwd() / 'svgs'
+if not svg_dir.is_dir():
+    svg_dir.mkdir()
+
 for i in range(args.num_plates):
-    outpath_outline = Path.cwd() / f'{i}_outline.svg'
-    outpath_dots = Path.cwd() / f'{i}_dots.svg'
+    outpath_outline = svg_dir / f'{i}_outline.svg'
+    outpath_dots = svg_dir / f'{i}_dots.svg'
     dwg_outline = Drawing(filename=str(outpath_outline), debug=True)
     dwg_dots = Drawing(filename=str(outpath_dots), debug=True)
     previous.extend(generate(dwg_outline, dwg_dots, num_rows, num_cols, previous))
     dwg_outline.save()
     dwg_dots.save()
+
+if args.svg_only:
+    exit(0)
+
+stl_dir = Path.cwd() / "stls"
+if not stl_dir.is_dir():
+    stl_dir.mkdir()
+
+for i in range(args.num_plates):
+    print( "\n\n+===================+")
+    print(f"| Generating file {i} |")
+    print( "+===================+\n")
+    for layer, lid in (('dominos', 0), ('dovetails', 1)):
+        outfile = stl_dir / f"{i}-{layer}.stl"
+        subprocess.run([
+            OPENSCAD_EXE,
+            "-o", outfile,
+            "-D", f"width={args.width}",
+            "-D", f"height={args.height}",
+            "-D", f"thickness={args.thickness}",
+            "-D", f"fid={i}",
+            "-D", f"selector={lid}",
+            "dovetail-shaperplates.scad"
+        ], cwd=Path(__file__).parent)
