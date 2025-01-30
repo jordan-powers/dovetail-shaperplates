@@ -1,9 +1,11 @@
-// ALL MEASUREMENTS IN mm
-width = 250;
-height = 210;
+num_rows = 6;
+num_cols = 5;
+
+// measured in inches
 thickness = (1/16) * 25.4;
-fid = 0;
+fid = "2099b49f";
 selector = 1;
+label = str("1/16\" - 4x6 - ", fid);
 
 echo("Generating file ", fid);
 
@@ -13,23 +15,13 @@ domino_thickness = 0.4;
 
 domino_width = 43;
 domino_height = 12.7;
-domino_spacing = 5;
+domino_spacing = 2.5;
 
 dovetail_fit_tolerance = 0;
 
-dovetail_angle = max(
-    60,
-    atan(dovetail_depth / domino_spacing)
-);
+dovetail_angle = 60;
 
-num_rows = floor((height - (dovetail_depth*2) + domino_spacing) / (domino_height + domino_spacing));
-echo(num_rows);
-
-
-padding_height = (height - (dovetail_depth*2) - ((num_rows * (domino_height + domino_spacing)) - domino_spacing)) / 2;
-echo(padding_height);
-
-dovetail_width = domino_height + (domino_spacing * 2);
+dovetail_width = domino_height + (2*dovetail_depth*tan(90-dovetail_angle));
 
 module dovetail(tolerance=0) { 
     let(tanlen = dovetail_radius * tan(90 - (dovetail_angle/2))) {
@@ -73,47 +65,53 @@ module dovetail(tolerance=0) {
 }
 
 module dominos(fid) {
-    translate([0, height - dovetail_depth])
+    translate([dovetail_depth, (dovetail_depth*2 + domino_height) * num_rows, 0])
     linear_extrude(domino_thickness)
     scale(25.4/96)
     difference() {
-        import(str("svgs/", fid, "_outline.svg"));
-        import(str("svgs/", fid, "_dots.svg"));
+        import(str("svgs/", num_rows, "_", num_cols, "_", fid, "_outline.svg"));
+        import(str("svgs/", num_rows, "_", num_cols, "_", fid, "_dots.svg"));
     }
 }
 
-module dovetail_plate() {
-    difference() {
-        union() {
-            cube([width - dovetail_depth, height - dovetail_depth, thickness], false);
-            for (i = [0 : 2 : num_rows-3] )
-                translate([width - dovetail_depth, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0])
-                dovetail(-dovetail_fit_tolerance);
-            for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
-                translate([dovetail_width * (i+1) + dovetail_depth, height - dovetail_depth, 0])
-                rotate([0, 0, 90])
-                dovetail(-dovetail_fit_tolerance);
-        }
-        for (i = [0 : 2 : num_rows-3] )
-            translate([0, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0]) dovetail();
-        
-        for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
-            translate([dovetail_width * (i+1) + dovetail_depth, 0, 0]) rotate([0, 0, 90]) dovetail();
-    }
+module label() {
+    translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * (domino_height + dovetail_depth*2) - dovetail_depth + 1.5, domino_thickness])
+    rotate([180, 0, 180])
+    linear_extrude(domino_thickness)
+    text(label, size=7, font="Segoe UI Black");
 }
 
-//intersection() {
-//dovetail_plate();
-//translate([width - (dovetail_depth + 4*dovetail_width + 10), height - ( dovetail_depth + domino_height + 3*(domino_spacing + domino_height) + 10), 0])
-//cube([dovetail_depth + 4*dovetail_width + 10, dovetail_depth + domino_height + 3*(domino_spacing + domino_height) + 10, thickness]);
-//}
-
-if(selector) 
-color("white") 
+if(selector)
+color("white")
 difference() {
-    dovetail_plate();
-    dominos(fid);
+union() {
+    cube([(domino_width + domino_spacing) * num_cols, (domino_height + 2*dovetail_depth) * num_rows, thickness]);
+    
+    for(i = [0:1:num_rows-1])
+    translate([(domino_width + domino_spacing)*num_cols, dovetail_depth * (1-tan(90-dovetail_angle)) + (i*(domino_height + dovetail_depth*2)), 0])
+    dovetail();
+    
+    for(i = [0:1:num_cols-1])
+    translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), num_rows*(domino_height + 2*dovetail_depth), 0])
+    rotate([0, 0, 90])
+    dovetail();
+}
+
+for(i = [0:1:num_rows-1])
+translate([0, dovetail_depth * (1-tan(90-dovetail_angle)) + (i*(domino_height + dovetail_depth*2)), 0])
+dovetail(dovetail_fit_tolerance);
+
+for(i = [0:1:num_cols-1])
+translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), 0, 0])
+rotate([0, 0, 90])
+dovetail(dovetail_fit_tolerance);
+
+#dominos(fid);
+#label();
 }
 else
 color("black")
+union() {
 dominos(fid);
+label();
+}
