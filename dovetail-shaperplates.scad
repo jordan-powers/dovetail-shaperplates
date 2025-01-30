@@ -82,24 +82,36 @@ module dominos(fid) {
     }
 }
 
+module dovetail_plate() {
+    difference() {
+        union() {
+            cube([width - dovetail_depth, height - dovetail_depth, thickness], false);
+            for (i = [0 : 2 : num_rows-3] )
+                translate([width - dovetail_depth, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0])
+                dovetail(-dovetail_fit_tolerance);
+            for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
+                translate([dovetail_width * (i+1) + dovetail_depth, height - dovetail_depth, 0])
+                rotate([0, 0, 90])
+                dovetail(-dovetail_fit_tolerance);
+        }
+        for (i = [0 : 2 : num_rows-3] )
+            translate([0, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0]) dovetail();
+        
+        for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
+            translate([dovetail_width * (i+1) + dovetail_depth, 0, 0]) rotate([0, 0, 90]) dovetail();
+    }
+}
+
+//intersection() {
+//dovetail_plate();
+//translate([width - (dovetail_depth + 4*dovetail_width + 10), height - ( dovetail_depth + domino_height + 3*(domino_spacing + domino_height) + 10), 0])
+//cube([dovetail_depth + 4*dovetail_width + 10, dovetail_depth + domino_height + 3*(domino_spacing + domino_height) + 10, thickness]);
+//}
+
 if(selector) 
 color("white") 
 difference() {
-    union() {
-        cube([width - dovetail_depth, height - dovetail_depth, thickness], false);
-        for (i = [0 : 2 : num_rows-3] )
-            translate([width - dovetail_depth, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0])
-            dovetail(-dovetail_fit_tolerance);
-        for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
-            translate([dovetail_width * (i+1) + dovetail_depth, height - dovetail_depth, 0])
-            rotate([0, 0, 90])
-            dovetail(-dovetail_fit_tolerance);
-    }
-    for (i = [0 : 2 : num_rows-3] )
-        translate([0, i*(domino_spacing + domino_height) + domino_height + dovetail_depth + padding_height, 0]) dovetail();
-    
-    for (i = [0 : 2 : floor((width - (dovetail_depth*2)) / dovetail_width)-1])
-        translate([dovetail_width * (i+1) + dovetail_depth, 0, 0]) rotate([0, 0, 90]) dovetail();
+    dovetail_plate();
     dominos(fid);
 }
 else
