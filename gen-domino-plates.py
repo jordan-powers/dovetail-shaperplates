@@ -25,6 +25,10 @@ args = parser.parse_args()
 if args.seed:
     random.seed(args.seed)
 
+if not args.svg_only and not OPENSCAD_EXE.is_file():
+    print("error: could not locate openscad.exe")
+    exit(1)
+
 dovetail_depth = 10
 dovetail_angle = 60
 
