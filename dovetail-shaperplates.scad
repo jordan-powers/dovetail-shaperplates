@@ -78,7 +78,7 @@ module dominos(fid) {
 
 module label() {
     if (num_cols >= 3)
-    translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * (domino_height + dovetail_depth*2) - dovetail_depth + 1.5, domino_thickness])
+    translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * grid_height - dovetail_depth + 1, domino_thickness])
     rotate([180, 0, 180])
     linear_extrude(domino_thickness)
     text(label, size=7, font="Segoe UI Black");
