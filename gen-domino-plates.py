@@ -5,7 +5,6 @@ from pathlib import Path
 import subprocess
 import json
 import xml.etree.ElementTree as ET
-import hashlib
 import shutil
 import math
 
@@ -18,12 +17,9 @@ parser.add_argument("thickness", type=str, help="thickness of generated plate, i
 parser.add_argument("num_plates", type=int, help="how many unique plate patterns to generate")
 parser.add_argument("--svg-only", action="store_true", help="skip running openscad")
 parser.add_argument("--clean", action="store_true", help="remove any previously generated files")
-parser.add_argument("--seed")
+parser.add_argument("--start-domino", type=str, help="the hex id of the first domino to generate")
 
 args = parser.parse_args()
-
-if args.seed:
-    random.seed(args.seed)
 
 if not args.svg_only and not OPENSCAD_EXE.is_file():
     print("error: could not locate openscad.exe")
@@ -54,6 +50,47 @@ if not stl_dir.is_dir():
     stl_dir.mkdir()
 
 # Adapted from https://github.com/augiev/Shaper-Dominos
+class DominoGenerator:
+    MAX_COUNT = 903 # total number of valid fiducials (based on exhaustive search)
+    def __init__(self, start_domino: int = 0):
+        self.generator = random.Random("bd965e0a")
+        self.prev = set()
+
+        while len(self.prev) < start_domino:
+            next(self)
+
+    @property
+    def next_id(self):
+        return len(self.prev)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if len(self.prev) >= DominoGenerator.MAX_COUNT:
+            raise StopIteration
+
+        while True:
+            rand = self.generator.randint(0, 65536)
+            rand |= 1 | (1<<7) | (1<<8) | (1<<15)
+            top = bin(rand)[3:9]
+            bottom = bin(rand)[11:17]
+
+            # require 10 total dots
+            if bin(rand).count('1') != 10:
+                continue
+
+            # discard if dots are in a rotationally-symmetric pattern
+            if top == ''.join(reversed(bottom)):
+                continue
+
+            if rand in self.prev:
+                continue
+
+            self.prev.add(rand)
+
+            return rand
+
 dpi = 96
 scale = dpi/25.4
 fillet_rad = 2.5*scale
@@ -67,30 +104,14 @@ border_h = ((grid_height/2) - domino_height) *scale
 xoff = rect_w/2 + (domino_horiz_spacing/2)*scale
 yoff = (grid_height/2)*scale
 
-def generate(d_outline, d_dots, rows, cols, previous=set()):
+def generate(d_outline, d_dots, rows, cols, generator: DominoGenerator):
     assert rows > 0 and cols > 0
 
     num_domino = ((rows*2 - 1) * cols)
 
-    vals = set()
+    vals = []
     while len(vals) < (num_domino):
-        rand = random.randint(0, 65536)
-        rand |= 1 | (1<<7) | (1<<8) | (1<<15)
-        top = bin(rand)[3:9]
-        bottom = bin(rand)[11:17]
-
-        # require 10 total dots
-        if bin(rand).count('1') != 10:
-            continue
-
-        # discard if dots are in a rotationally-symmetric pattern
-        if top == ''.join(reversed(bottom)):
-            continue
-
-        # check if an exact duplicate exists
-        if not rand in vals and not rand in previous:
-            vals.add(rand)
-
+        vals.append(next(generator))
 
     row_col = []
     for r in range(rows*2-1):
@@ -127,51 +148,55 @@ def generate(d_outline, d_dots, rows, cols, previous=set()):
                 d_dots.add(d_dots.circle(center=((-3.5 + i)*circle_grid + xoff2, -circle_grid/2 + yoff2), r=circle_rad, fill='black'))
     return vals
 
-previous = set()
-
-max_count = 903 # total number of valid fiducials (based on exhaustive search)
-
 requested_count = args.num_rows*args.num_cols*args.num_plates
-if requested_count > max_count:
-    print(f'error, only {max_count} fiducials exist; requested {requested_count}')
+if requested_count > DominoGenerator.MAX_COUNT:
+    print(f'error, only {DominoGenerator.MAX_COUNT} fiducials exist; requested {requested_count}')
     exit(1)
 
-# Load previous
-ns = {'svg':'http://www.w3.org/2000/svg'}
-doc_count = 0
-for f in svg_dir.glob("*.svg"):
-    root = ET.parse(f).getroot()
-    desc = root.find('svg:desc', ns)
-    if desc is None:
-        continue
-    try:
-        values = json.loads(desc.text)
-        if 'dominos' in values:
-            previous.update(values['dominos'])
-            doc_count += 1
-    except json.decoder.JSONDecodeError:
-        pass
+if args.start_domino is not None:
+    start_domino = int(args.start_domino, 16)
+else:
+    start_domino = 0
+    # Load previous
+    ns = {'svg':'http://www.w3.org/2000/svg'}
+    for f in svg_dir.glob("*.svg"):
+        root = ET.parse(f).getroot()
+        desc = root.find('svg:desc', ns)
+        if desc is None:
+            continue
+        try:
+            values = json.loads(desc.text)
+            if 'start_id' in values and 'num_dominos' in values:
+                start_domino = max(start_domino, values['start_id'] + values['num_dominos'])
+        except json.decoder.JSONDecodeError:
+            pass
 
-if len(previous) > 0:
-    print(f"Warn: Excluding {len(previous)} dominos from {doc_count} previously-generated patterns")
+    print(f'No start domino specified, starting from {start_domino}')
 
-hashes = []
+generator = DominoGenerator(start_domino)
+
+start_ids = []
 
 for i in range(args.num_plates):
     dwg_outline = Drawing(filename="nopath.svg", debug=True)
     dwg_dots = Drawing(filename="nopath.svg", debug=True)
-    values = generate(dwg_outline, dwg_dots, args.num_rows, args.num_cols, previous)
-    previous.update(values)
-    hash = hashlib.sha256(','.join(str(v) for v in values).encode('utf-8')).hexdigest()
-    hashes.append(hash)
+
+    start_id = generator.next_id
+    start_id_str = '{:>04x}'.format(start_id)
+    start_ids.append(start_id_str)
+
+    values = generate(dwg_outline, dwg_dots, args.num_rows, args.num_cols, generator)
+
     meta = json.dumps({
-        "dominos": list(values),
-        "hash": hash
+        "dominos": values,
+        "start_id": start_id,
+        "num_dominos": len(values)
     })
     dwg_outline.set_desc(desc=meta)
     dwg_dots.set_desc(desc=meta)
-    outpath_outline = svg_dir / f'{args.num_rows}_{args.num_cols}_{hash[:8]}_outline.svg'
-    outpath_dots = svg_dir / f'{args.num_rows}_{args.num_cols}_{hash[:8]}_dots.svg'
+
+    outpath_outline = svg_dir / f'{args.num_rows}_{args.num_cols}_{start_id_str}_outline.svg'
+    outpath_dots = svg_dir / f'{args.num_rows}_{args.num_cols}_{start_id_str}_dots.svg'
     dwg_outline.saveas(outpath_outline, pretty=True)
     dwg_dots.saveas(outpath_dots, pretty=True)
 
@@ -183,8 +208,8 @@ for i in range(args.num_plates):
     print(f"| Generating file {i} |")
     print( "+===================+\n")
     for layer, lid in (('dominos', 0), ('dovetails', 1)):
-        hash = hashes[i]
-        outfile = stl_dir / f"{thickness_in:.2f}_{args.num_rows}_{args.num_cols}_{hash[:8]}_{layer}.stl"
+        start_id_str = start_ids[i]
+        outfile = stl_dir / f"{thickness_in:.2f}_{args.num_rows}_{args.num_cols}_{start_id_str}_{layer}.stl"
         subprocess.run([
             OPENSCAD_EXE,
             "-o", outfile,
@@ -192,8 +217,8 @@ for i in range(args.num_plates):
             "-D", f"num_cols={args.num_cols}",
             "-D", f"thickness={thickness_mm}",
             "-D", f"dovetail_angle={dovetail_angle}",
-            "-D", f"label=\"{args.thickness}\\\" - {args.num_rows}x{args.num_cols} - {hash[:8]}\"",
-            "-D", f"fid=\"{hash[:8]}\"",
+            "-D", f"label=\"{args.thickness}\\\" - {args.num_rows}x{args.num_cols} - {start_id_str}\"",
+            "-D", f"fid=\"{start_id_str}\"",
             "-D", f"selector={lid}",
             "dovetail-shaperplates.scad"
         ], cwd=Path(__file__).parent)

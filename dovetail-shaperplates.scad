@@ -1,11 +1,11 @@
-num_rows = 2;
-num_cols = 1;
+num_rows = 1;
+num_cols = 3;
 
 // measured in inches
 thickness = (1/16) * 25.4;
-fid = "5c4d82d8";
+fid = "0000";
 selector = 1;
-label = str("1/16\" - 4x6 - ", fid);
+label = str("1/16\" - ",num_rows,"x",num_cols," - ", fid);
 
 echo("Generating file ", fid);
 
