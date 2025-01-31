@@ -102,7 +102,7 @@ def generate(d_outline, d_dots, rows, cols, previous=set()):
         xoff2 = xoff + c*(rect_w + border_w)
         yoff2 = yoff + r*(rect_h + border_h)
 
-        if r % 2 == 0:
+        if r % 2 == 1:
             xoff2 += dovetail_depth*scale
 
         # draw rounded rectangle

@@ -67,7 +67,8 @@ module dovetail(tolerance=0) {
 }
 
 module dominos(fid) {
-    translate([0, grid_height * num_rows, 0])
+    translate([num_cols * (domino_width + domino_spacing) + dovetail_depth, grid_height * num_rows, domino_thickness])
+    rotate([180, 0, 180])
     linear_extrude(domino_thickness)
     scale(25.4/96)
     difference() {
