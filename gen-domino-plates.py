@@ -1,11 +1,13 @@
 import argparse
-from random import randint
+import random
 from svgwrite import Drawing
 from pathlib import Path
 import subprocess
 import json
 import xml.etree.ElementTree as ET
 import hashlib
+import shutil
+import math
 
 OPENSCAD_EXE = Path(r"C:\Users\jordan\Downloads\OpenSCAD-2025.01.29-x86-64\openscad.exe")
 
@@ -15,10 +17,16 @@ parser.add_argument("num_cols", type=int, help="number of columns of dominos")
 parser.add_argument("thickness", type=str, help="thickness of generated plate, in inches")
 parser.add_argument("num_plates", type=int, help="how many unique plate patterns to generate")
 parser.add_argument("--svg-only", action="store_true", help="skip running openscad")
+parser.add_argument("--clean", action="store_true", help="remove any previously generated files")
+parser.add_argument("--seed")
 
 args = parser.parse_args()
 
+if args.seed:
+    random.seed(args.seed)
+
 dovetail_depth = 10
+dovetail_angle = 60
 
 domino_horiz_spacing = 2.25
 domino_width = 43
@@ -26,6 +34,20 @@ domino_height = 12.7
 
 thickness_in = eval(args.thickness)
 thickness_mm = thickness_in * 25.4
+
+grid_height = (domino_height + dovetail_depth*math.tan(math.radians(90-dovetail_angle))) * 2
+
+svg_dir = Path.cwd() / 'svgs'
+if args.clean and svg_dir.is_dir():
+    shutil.rmtree(svg_dir)
+if not svg_dir.is_dir():
+    svg_dir.mkdir()
+
+stl_dir = Path.cwd() / "stls"
+if args.clean and stl_dir.is_dir():
+    shutil.rmtree(stl_dir)
+if not stl_dir.is_dir():
+    stl_dir.mkdir()
 
 # Adapted from https://github.com/augiev/Shaper-Dominos
 dpi = 96
@@ -37,22 +59,18 @@ rect_w = domino_width*scale
 rect_h = domino_height*scale
 
 border_w = domino_horiz_spacing*scale
-border_h = (dovetail_depth - domino_height/2) *scale
+border_h = ((grid_height/2) - domino_height) *scale
 xoff = rect_w/2 + (domino_horiz_spacing/2)*scale
-yoff = rect_h/2 + dovetail_depth*scale
-
-xoff_extra = (domino_horiz_spacing + domino_width - dovetail_depth) * scale / 2
+yoff = (grid_height/2)*scale
 
 def generate(d_outline, d_dots, rows, cols, previous=set()):
     assert rows > 0 and cols > 0
 
-    extra_rows = rows-1
-
-    num_domino = (rows * cols) + (extra_rows * (cols-1))
+    num_domino = ((rows*2 - 1) * cols)
 
     vals = set()
     while len(vals) < (num_domino):
-        rand = randint(0, 65536)
+        rand = random.randint(0, 65536)
         rand |= 1 | (1<<7) | (1<<8) | (1<<15)
         top = bin(rand)[3:9]
         bottom = bin(rand)[11:17]
@@ -71,12 +89,8 @@ def generate(d_outline, d_dots, rows, cols, previous=set()):
 
 
     row_col = []
-    for r in range(rows + extra_rows):
-        if r % 2 == 0:
-            thisrow_cols = cols
-        else:
-            thisrow_cols = cols-1
-        for c in range(thisrow_cols):
+    for r in range(rows*2-1):
+        for c in range(cols):
             row_col.append((r,c))
     gen = zip(row_col, vals)
 
@@ -84,8 +98,8 @@ def generate(d_outline, d_dots, rows, cols, previous=set()):
         xoff2 = xoff + c*(rect_w + border_w)
         yoff2 = yoff + r*(rect_h + border_h)
 
-        if r % 2 == 1:
-            xoff2 += xoff_extra
+        if r % 2 == 0:
+            xoff2 += dovetail_depth*scale
 
         # draw rounded rectangle
         cmds = [
@@ -118,10 +132,6 @@ if requested_count > max_count:
     print(f'error, only {max_count} fiducials exist; requested {requested_count}')
     exit(1)
 
-svg_dir = Path.cwd() / 'svgs'
-if not svg_dir.is_dir():
-    svg_dir.mkdir()
-
 # Load previous
 ns = {'svg':'http://www.w3.org/2000/svg'}
 doc_count = 0
@@ -139,7 +149,7 @@ for f in svg_dir.glob("*.svg"):
         pass
 
 if len(previous) > 0:
-    print(f"Excluding {len(previous)} dominos from {doc_count} previously-generated documents")
+    print(f"Warn: Excluding {len(previous)} dominos from {doc_count} previously-generated patterns")
 
 hashes = []
 
@@ -164,10 +174,6 @@ for i in range(args.num_plates):
 if args.svg_only:
     exit(0)
 
-stl_dir = Path.cwd() / "stls"
-if not stl_dir.is_dir():
-    stl_dir.mkdir()
-
 for i in range(args.num_plates):
     print( "\n\n+===================+")
     print(f"| Generating file {i} |")
@@ -181,6 +187,7 @@ for i in range(args.num_plates):
             "-D", f"num_rows={args.num_rows}",
             "-D", f"num_cols={args.num_cols}",
             "-D", f"thickness={thickness_mm}",
+            "-D", f"dovetail_angle={dovetail_angle}",
             "-D", f"label=\"{args.thickness}\\\" - {args.num_rows}x{args.num_cols} - {hash[:8]}\"",
             "-D", f"fid=\"{hash[:8]}\"",
             "-D", f"selector={lid}",

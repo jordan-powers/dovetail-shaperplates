@@ -1,9 +1,9 @@
-num_rows = 6;
-num_cols = 5;
+num_rows = 2;
+num_cols = 1;
 
 // measured in inches
 thickness = (1/16) * 25.4;
-fid = "2099b49f";
+fid = "5c4d82d8";
 selector = 1;
 label = str("1/16\" - 4x6 - ", fid);
 
@@ -11,8 +11,8 @@ echo("Generating file ", fid);
 
 dovetail_depth = 10;
 dovetail_radius = 1;
-domino_thickness = 0.4;
 
+domino_thickness = 0.4;
 domino_width = 43;
 domino_height = 12.7;
 domino_spacing = 2.5;
@@ -22,6 +22,8 @@ dovetail_fit_tolerance = 0;
 dovetail_angle = 60;
 
 dovetail_width = domino_height + (2*dovetail_depth*tan(90-dovetail_angle));
+
+grid_height = (domino_height + (dovetail_depth*tan(90-dovetail_angle))) * 2;
 
 module dovetail(tolerance=0) { 
     let(tanlen = dovetail_radius * tan(90 - (dovetail_angle/2))) {
@@ -65,7 +67,7 @@ module dovetail(tolerance=0) {
 }
 
 module dominos(fid) {
-    translate([dovetail_depth, (dovetail_depth*2 + domino_height) * num_rows, 0])
+    translate([0, grid_height * num_rows, 0])
     linear_extrude(domino_thickness)
     scale(25.4/96)
     difference() {
@@ -75,6 +77,7 @@ module dominos(fid) {
 }
 
 module label() {
+    if (num_cols >= 3)
     translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * (domino_height + dovetail_depth*2) - dovetail_depth + 1.5, domino_thickness])
     rotate([180, 0, 180])
     linear_extrude(domino_thickness)
@@ -85,20 +88,20 @@ if(selector)
 color("white")
 difference() {
 union() {
-    cube([(domino_width + domino_spacing) * num_cols, (domino_height + 2*dovetail_depth) * num_rows, thickness]);
+    cube([(domino_width + domino_spacing) * num_cols, grid_height * num_rows, thickness]);
     
     for(i = [0:1:num_rows-1])
-    translate([(domino_width + domino_spacing)*num_cols, dovetail_depth * (1-tan(90-dovetail_angle)) + (i*(domino_height + dovetail_depth*2)), 0])
+    translate([(domino_width + domino_spacing)*num_cols, (dovetail_width/2) - dovetail_depth*tan(90-dovetail_angle) + (i*grid_height), 0])
     dovetail();
     
     for(i = [0:1:num_cols-1])
-    translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), num_rows*(domino_height + 2*dovetail_depth), 0])
+    translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), num_rows*grid_height, 0])
     rotate([0, 0, 90])
     dovetail();
 }
 
 for(i = [0:1:num_rows-1])
-translate([0, dovetail_depth * (1-tan(90-dovetail_angle)) + (i*(domino_height + dovetail_depth*2)), 0])
+translate([0, (dovetail_width/2) - dovetail_depth*tan(90-dovetail_angle) + (i*grid_height), 0])
 dovetail(dovetail_fit_tolerance);
 
 for(i = [0:1:num_cols-1])
