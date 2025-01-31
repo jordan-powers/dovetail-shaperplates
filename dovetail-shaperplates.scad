@@ -17,7 +17,7 @@ domino_width = 43;
 domino_height = 12.7;
 domino_spacing = 2.5;
 
-dovetail_fit_tolerance = 0;
+dovetail_fit_tolerance = -0.05;
 
 dovetail_angle = 60;
 
