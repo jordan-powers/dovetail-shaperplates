@@ -1,3 +1,5 @@
-*.svg
 venv
+svgs/
+*.svg
+stls/
 *.stl
