@@ -54,7 +54,7 @@ Note that the OpenSCAD is not fast, and it frequently takes me ~10 mins per plat
 
 ## The Grid
 The domino plates produced by this tool will align to a grid, with each cell measuring
-36.9mm tall by 45.5mm wide. when generating a plate, you will specify the number of grid rows
+34.57mm tall by 45.5mm wide. When generating a plate, you will specify the number of grid rows
 and columns in the generated plate.
 
 To maximize domino density, you will want to print the largest contiguous grid that
@@ -95,7 +95,7 @@ python3 gen-domino-plates.py 5 5 1/16 1 --start-domino 000a
 
 ### Generating a Unique Grid (Automatic)
 When generating a grid, the program will look for existing grids in the `/svgs` folder and ensure
-that the newly generated grid does use dominos already in use by existing grids. Simply run the
+that the newly generated grid does not use dominos already in use by existing grids. Simply run the
 program as normal and all produced grids will be unique.
 
 ### Generating a Unique Grid (Manual)
@@ -110,9 +110,9 @@ Once you have identified the highest-id grid, count the number of dominos and ad
 domino count to the id. Finally, pass the result to the `--start-domino` flag.
 
 For example, let's say I want to generate a new 5x5 grid. I look through my current grids, and I find
-that the hightest id grid is a 1x3 grid with 6 dominos and id 0010. I would generate the next plate
+that the highest id grid is a 1x3 grid with 6 dominos and id 0010. I would generate the next plate
 using the command:
 ```bash
-python3 gen-domino-plates 5 5 1/16 1 --start-domino 0016
+python3 gen-domino-plates.py 5 5 1/16 1 --start-domino 0016
 ```
 
