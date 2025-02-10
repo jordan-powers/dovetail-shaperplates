@@ -61,16 +61,18 @@ To maximize domino density, you will want to print the largest contiguous grid t
 will fit on the build plate of your 3d printer, as dominos cannot be printed across dovetail joins.
 
 Use these formulae to calculate the width and height of a given plate in millimeters.
+<!-- width = num_cols * (domino_width + domino_spacing) + dovetail_depth >
+<!-- height = num_rows * 2 * (domino_height + (dovetail_depth * tan(90 deg - dovetail_angle))) + dovetail_depth -->
 ```
-width = num_cols * 45.5 + 10
-height = num_rows * 36.9 + 10
+width = num_cols * 45.5 + 7.9375
+height = num_rows * 34.5654 + 7.9375
 ```
 
 To calculate the max plate that will fit in a given volume (e.g. your build plate), simply reverse
 the formulae.
 ```
-num_cols = floor((width - 10) / 45.5)
-num_rows = floor((height - 10 / 36.9))
+num_cols = floor((width - 7.9375) / 45.5)
+num_rows = floor((height - 7.9375 / 34.5654))
 ```
 
 ## Domino IDs

@@ -25,7 +25,7 @@ if not args.svg_only and not OPENSCAD_EXE.is_file():
     print("error: could not locate openscad.exe")
     exit(1)
 
-dovetail_depth = 10
+dovetail_depth = (5/16) * 25.4
 dovetail_angle = 60
 
 domino_horiz_spacing = 2.25

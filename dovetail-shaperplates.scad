@@ -9,8 +9,8 @@ label = str("1/16\" - ",num_rows,"x",num_cols," - ", fid);
 
 echo("Generating file ", fid);
 
-dovetail_depth = 10;
-dovetail_radius = 1;
+dovetail_depth = (5/16) * 25.4;
+dovetail_radius = (1/16) * 25.4;
 
 domino_thickness = 0.4;
 domino_width = 43;
