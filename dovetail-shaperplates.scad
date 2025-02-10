@@ -25,21 +25,21 @@ dovetail_width = domino_height + (2*dovetail_depth*tan(90-dovetail_angle));
 
 grid_height = (domino_height + (dovetail_depth*tan(90-dovetail_angle))) * 2;
 
-module dovetail(tolerance=0) { 
+module dovetail(width=dovetail_width, tolerance=0) { 
     let(tanlen = dovetail_radius * tan(90 - (dovetail_angle/2))) {
         difference() {
         union() {
             linear_extrude(thickness) {
                 polygon(points = [
-                    [tolerance, dovetail_width - dovetail_depth*tan(90-dovetail_angle) + tanlen],
+                    [tolerance, width - dovetail_depth*tan(90-dovetail_angle) + tanlen],
                     [
                         tanlen * cos(90 - dovetail_angle) - (tolerance * cos(dovetail_angle)),
-                        dovetail_width - dovetail_depth*tan(90-dovetail_angle) + (tanlen * sin(90 - dovetail_angle)) + (tolerance * sin(dovetail_angle))],
+                        width - dovetail_depth*tan(90-dovetail_angle) + (tanlen * sin(90 - dovetail_angle)) + (tolerance * sin(dovetail_angle))],
                     [
                         dovetail_depth - (tanlen * cos(90 - dovetail_angle)) - (tolerance * cos(dovetail_angle)),
-                        dovetail_width - (tanlen * sin(90 - dovetail_angle)) + (tolerance * sin(dovetail_angle))
+                        width - (tanlen * sin(90 - dovetail_angle)) + (tolerance * sin(dovetail_angle))
                     ],
-                    [dovetail_depth + tolerance, dovetail_width - tanlen],
+                    [dovetail_depth + tolerance, width - tanlen],
                     [dovetail_depth + tolerance, tanlen],
                     [
                         dovetail_depth - (tanlen * cos(90 - dovetail_angle)) - (tolerance * cos(dovetail_angle)),
@@ -53,12 +53,12 @@ module dovetail(tolerance=0) {
                 ]);
             }
             
-            translate([dovetail_depth - dovetail_radius, dovetail_width - tanlen, 0])
+            translate([dovetail_depth - dovetail_radius, width - tanlen, 0])
             cylinder(h=thickness, r=dovetail_radius + tolerance, center=false, $fn=60);
             translate([dovetail_depth - dovetail_radius, tanlen, 0])
             cylinder(h=thickness, r=dovetail_radius + tolerance, center=false, $fn=60);
         };
-        translate([dovetail_radius, dovetail_width - dovetail_depth*tan(90-dovetail_angle) + tanlen, 0])
+        translate([dovetail_radius, width - dovetail_depth*tan(90-dovetail_angle) + tanlen, 0])
             cylinder(h=thickness, r=dovetail_radius - tolerance, center=false, $fn=60);
             translate([dovetail_radius, dovetail_depth*tan(90-dovetail_angle) - tanlen, 0])
             cylinder(h=thickness, r=dovetail_radius - tolerance, center=false, $fn=60);
@@ -79,7 +79,7 @@ module dominos(fid) {
 
 module label() {
     if (num_cols >= 3)
-    translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * grid_height - dovetail_depth + 1, domino_thickness])
+    translate([num_cols * (domino_width + domino_spacing) - 2, num_rows * grid_height - dovetail_depth - 1, domino_thickness])
     rotate([180, 0, 180])
     linear_extrude(domino_thickness)
     text(label, size=7, font="Segoe UI Black");
@@ -96,19 +96,19 @@ union() {
     dovetail();
     
     for(i = [0:1:num_cols-1])
-    translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), num_rows*grid_height, 0])
+    translate([(domino_width + domino_spacing)*3/4 + dovetail_depth*tan(90-dovetail_angle)/2 + i*(domino_width + domino_spacing), num_rows*grid_height, 0])
     rotate([0, 0, 90])
-    dovetail();
+    dovetail(width=((domino_width + domino_spacing)/2 + dovetail_depth*tan(90-dovetail_angle)));
 }
 
 for(i = [0:1:num_rows-1])
 translate([0, (dovetail_width/2) - dovetail_depth*tan(90-dovetail_angle) + (i*grid_height), 0])
-dovetail(dovetail_fit_tolerance);
+dovetail(tolerance=dovetail_fit_tolerance);
 
 for(i = [0:1:num_cols-1])
-translate([dovetail_width + (dovetail_depth - dovetail_width + domino_width+domino_spacing)/2 + i*(domino_width + domino_spacing), 0, 0])
+translate([(domino_width + domino_spacing)*3/4 + dovetail_depth*tan(90-dovetail_angle)/2 + i*(domino_width + domino_spacing), 0, 0])
 rotate([0, 0, 90])
-dovetail(dovetail_fit_tolerance);
+dovetail(width=((domino_width + domino_spacing)/2 + dovetail_depth*tan(90-dovetail_angle)), tolerance=dovetail_fit_tolerance);
 
 #dominos(fid);
 #label();
